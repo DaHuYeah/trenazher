@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Тренажёр дорог Чечни</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=PT+Sans:wght@400;700&family=PT+Sans+Narrow:wght@700&display=swap" rel="stylesheet">
+<style>
+/* VOICE: спокойный учебный инструмент для начинающего водителя
+   IDEA: дорожные указатели — синие для городов и сёл, белые для улиц Грозного
+   PICTURE: живая карта Яндекса сверху, под ней панель с указателями
+   COLOUR and TYPE: асфальт, синий указатель, белый; PT Sans Narrow на «табличках»
+   LAYOUT: карта + панель; на широком экране — рядом */
+:root{color-scheme:light dark;
+--bg:light-dark(#eef0f2,#14181d);--card:light-dark(#fff,#1e242b);--ink:light-dark(#151a20,#e8ecf0);
+--mute:light-dark(#5b6673,#9aa6b2);--line:light-dark(#d5dae0,#2e3640);
+--asph:#232a32;--blue:#1f5fbf;--blue2:#174a96;--ok:#1d8a4a;--bad:#c62828}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "PT Sans",system-ui,sans-serif;overflow-x:clip}
+button,input{font:inherit}
+.top{background:var(--asph);color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{font:700 21px/1.1 "PT Sans Narrow","PT Sans",sans-serif;margin:0;flex:1 1 auto}
+.home-chip{font-size:14px;background:#ffffff1a;border-radius:999px;padding:6px 12px}
+.app{display:grid;grid-template-rows:minmax(300px,52vh) auto}
+#map{width:100%;height:100%;background:#cfd6dc}
+.panel{background:var(--card);border-top:1px solid var(--line)}
+@media(min-width:900px){.app{grid-template-rows:none;grid-template-columns:minmax(0,1fr) 420px;height:calc(100vh - 52px)}
+ .panel{border-top:0;border-left:1px solid var(--line);overflow-y:auto}}
+.tabs{display:flex;position:sticky;top:0;background:var(--card);z-index:2;border-bottom:1px solid var(--line)}
+.tabs button{flex:1;min-height:48px;border:0;background:none;color:var(--mute);font-weight:700;border-bottom:3px solid transparent;cursor:pointer}
+.tabs button[aria-selected=true]{color:var(--ink);border-bottom-color:var(--blue)}
+.sec{padding:16px}
+.sec h2{font-size:19px;margin:0 0 8px;line-height:1.2}
+.note{color:var(--mute);font-size:14px;margin:6px 0}
+.btn{min-height:44px;padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;font-weight:700}
+.btn.pri{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn:focus-visible,.sign:focus-visible,.opt:focus-visible,.tabs button:focus-visible{outline:3px solid #ffb400;outline-offset:2px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.grp{font-size:13px;color:var(--mute);margin:14px 0 6px;font-weight:700}
+.signs{display:flex;flex-wrap:wrap;gap:8px}
+.sign{min-height:44px;padding:8px 12px;border-radius:6px;cursor:pointer;font:700 16px/1.15 "PT Sans Narrow","PT Sans",sans-serif;
+ background:var(--blue);color:#fff;border:2px solid #fff;box-shadow:0 0 0 2px var(--blue)}
+.sign.city{background:#fff;color:#111;border-color:#fff;box-shadow:0 0 0 2px #111}
+.sign.mine{background:#2f7d4f;box-shadow:0 0 0 2px #2f7d4f}
+.sign[aria-pressed=true]{outline:3px solid #ffb400;outline-offset:3px}
+.sum{display:flex;gap:16px;align-items:baseline;margin:6px 0 10px}
+.sum b{font-size:30px;line-height:1}
+.steps{list-style:none;padding:0;margin:0;counter-reset:s}
+.steps li{counter-increment:s;display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;padding:10px 4px;border-top:1px solid var(--line);cursor:pointer}
+.steps li::before{content:counter(s);font-weight:700;color:var(--mute)}
+.steps .d{color:var(--mute);white-space:nowrap;font-size:14px}
+.steps li.on{background:light-dark(#e8f0fc,#1b2a40)}
+.qcard{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px}
+.qn{font-size:13px;color:var(--mute)}
+.q{font-size:19px;font-weight:700;margin:4px 0 12px;line-height:1.25}
+.opt{display:block;width:100%;text-align:left;min-height:46px;margin:6px 0;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer}
+.opt.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.opt.bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.score{font-weight:700}
+.msg{padding:10px 12px;border-radius:10px;background:light-dark(#fff6d6,#3a3215);margin:10px 0}
+.err{background:light-dark(#fde7e7,#3d1c1c)}
+.reh{position:fixed;left:12px;right:12px;bottom:12px;z-index:9;background:var(--asph);color:#fff;border-radius:14px;padding:14px 16px;box-shadow:0 8px 30px #0006;max-width:560px;margin:auto}
+.reh .t{font-size:20px;font-weight:700;line-height:1.25;margin:4px 0 10px}
+.reh .btn{background:#ffffff1a;color:#fff;border-color:#ffffff33}
+.reh .btn.pri{background:var(--blue);border-color:var(--blue)}
+.keybox{max-width:560px;margin:40px auto;padding:20px}
+.keybox input,.field{width:100%;min-height:46px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:16px}
+.mine-list{list-style:none;padding:0;margin:8px 0}
+.mine-list li{display:flex;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--line)}
+.mine-list li span{flex:1}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</head>
+<body>
+
+<div class="top"><h1>Тренажёр дорог: Грозный и Чечня</h1><span class="home-chip" id="homeChip">Дом не указан</span></div>
+
+<section class="keybox" id="keyScreen" hidden>
+  <h2>Нужен ключ Яндекс Карт</h2>
+  <p>Ключ бесплатный. Получите его в кабинете разработчика Яндекса (сервис «JavaScript API и HTTP Геокодер») и вставьте сюда. Он сохранится в этом браузере.</p>
+  <p class="note">Кабинет: developer.tech.yandex.ru</p>
+  <input id="keyInput" placeholder="Например: 1a2b3c4d-…" autocomplete="off">
+  <div class="row"><button class="btn pri" id="keySave">Сохранить и открыть карту</button></div>
+  <div class="msg err" id="keyErr" hidden></div>
+</section>
+
+<div class="app" id="app" hidden>
+  <div id="map"></div>
+  <div class="panel">
+    <div class="tabs" role="tablist">
+      <button role="tab" data-t="route" aria-selected="true">Маршрут</button>
+      <button role="tab" data-t="quiz" aria-selected="false">Как доехать?</button>
+      <button role="tab" data-t="geo" aria-selected="false">Где это?</button>
+      <button role="tab" data-t="home" aria-selected="false">Дом и места</button>
+    </div>
+
+    <div class="sec" data-p="route">
+      <h2>Куда едем от дома?</h2>
+      <div id="needHome1" class="msg" hidden>Сначала укажите дом во вкладке «Дом и места».</div>
+      <div id="routeOut"></div>
+      <div id="signList"></div>
+    </div>
+
+    <div class="sec" data-p="quiz" hidden>
+      <h2>Тест: как доехать от дома</h2>
+      <p class="note">Тренажёр выбирает случайное место, строит настоящий маршрут и задаёт по нему вопросы. В конце покажет маршрут на карте.</p>
+      <div class="row"><button class="btn pri" id="quizStart">Новый маршрут</button><span class="score" id="quizScore"></span></div>
+      <div id="quizOut"></div>
+    </div>
+
+    <div class="sec" data-p="geo" hidden>
+      <h2>Тест: где это на карте?</h2>
+      <p class="note">Карта переключится на спутник без подписей. Нажмите туда, где, по-вашему, находится место. 5 вопросов.</p>
+      <div class="row"><button class="btn pri" id="geoTowns">Города и сёла</button><button class="btn" id="geoCity">Места в Грозном</button></div>
+      <div id="geoOut"></div>
+    </div>
+
+    <div class="sec" data-p="home" hidden>
+      <h2>Мой дом</h2>
+      <p class="note">Всё в тренажёре считается от этой точки. Она хранится только в этом браузере.</p>
+      <div class="row"><button class="btn pri" id="setHomeTap">Указать на карте</button><button class="btn" id="setHomeGps">Я сейчас дома (GPS)</button></div>
+      <div id="homeMsg"></div>
+      <h2 style="margin-top:22px">Мои места</h2>
+      <p class="note">Работа, родственники, рынок — добавьте свои точки, они появятся в маршрутах и тестах.</p>
+      <div class="row"><button class="btn" id="addPlace">Добавить место на карте</button></div>
+      <div id="addForm" hidden>
+        <input class="field" id="addName" placeholder="Название, например «Работа»" maxlength="40">
+        <div class="row"><button class="btn pri" id="addSave">Сохранить</button><button class="btn" id="addCancel">Отмена</button></div>
+      </div>
+      <ul class="mine-list" id="mineList"></ul>
+      <h2 style="margin-top:22px">Ключ карт</h2>
+      <div class="row"><button class="btn" id="keyReset">Сменить ключ Яндекса</button></div>
+      <p class="note">Тренажёр — для подготовки дома. За рулём пользуйтесь навигатором и не отвлекайтесь на телефон.</p>
+    </div>
+  </div>
+</div>
+
+<div class="reh" id="reh" hidden>
+  <div class="note" style="color:#c9d2dc" id="rehN"></div>
+  <div class="t" id="rehT"></div>
+  <div class="row"><button class="btn" id="rehPrev">Назад</button><button class="btn pri" id="rehNext">Дальше</button><button class="btn" id="rehClose">Закрыть</button></div>
+</div>
+
+<script>
+{
+// Можно вписать ключ прямо сюда, тогда экран ввода ключа не появится:
+const KEY_IN_FILE = '';
+
+const PLACES = [
+ {g:'Улицы и проспекты Грозного', cls:'city', items:[
+  ['Проспект Путина','Грозный, проспект Владимира Путина'],
+  ['Проспект Кадырова','Грозный, проспект Ахмат-Хаджи Кадырова'],
+  ['Проспект Мохаммеда Али','Грозный, проспект Мохаммеда Али'],
+  ['Проспект Исаева','Грозный, проспект Хусейна Исаева'],
+  ['Бульвар Эсамбаева','Грозный, бульвар Махмуда Эсамбаева'],
+  ['Улица Шейха Али Митаева','Грозный, улица Шейха Али Митаева'],
+  ['Улица Шерипова','Грозный, улица Асланбека Шерипова'],
+  ['Петропавловское шоссе','Грозный, Петропавловское шоссе'],
+  ['Ханкалинская улица','Грозный, Ханкалинская улица']]},
+ {g:'Места в Грозном', cls:'city', items:[
+  ['Мечеть «Сердце Чечни»','Грозный, мечеть Сердце Чечни'],
+  ['Грозный-Сити','Грозный, комплекс Грозный-Сити'],
+  ['Ж/д вокзал','Грозный, железнодорожный вокзал'],
+  ['Аэропорт','Аэропорт Грозный Северный'],
+  ['Рынок «Беркат»','Грозный, рынок Беркат'],
+  ['Ахмат-Арена','Грозный, стадион Ахмат-Арена'],
+  ['Площадь Минутка','Грозный, площадь Минутка'],
+  ['Старопромысловский район','Грозный, Старопромысловский район'],
+  ['Черноречье','Грозный, посёлок Черноречье'],
+  ['Ханкала','Чеченская Республика, Ханкала']]},
+ {g:'Города', cls:'', items:['Аргун','Гудермес','Шали','Урус-Мартан','Курчалой'].map(n=>[n,'Чеченская Республика, город '+n])},
+ {g:'Сёла и станицы', cls:'', items:['Старые Атаги','Гойты','Алхан-Кала','Алхан-Юрт','Самашки','Серноводское','Ачхой-Мартан','Валерик','Толстой-Юрт','Петропавловская','Цоци-Юрт','Автуры','Мескер-Юрт','Ойсхара','Бачи-Юрт','Знаменское','Наурская','Шелковская','Сержень-Юрт','Шатой','Ведено','Итум-Кали'].map(n=>[n,'Чеченская Республика, '+n])}
+];
+const STREET_POOL = ['проспект Владимира Путина','проспект Ахмат-Хаджи Кадырова','проспект Мохаммеда Али','проспект Хусейна Исаева','улица Шейха Али Митаева','Петропавловское шоссе','Ханкалинская улица','улица Асланбека Шерипова'];
+const DIRS = ['север','северо-восток','восток','юго-восток','юг','юго-запад','запад','северо-запад'];
+const GROZNY = [43.3180,45.6940];
+const ACT = {'left':'Налево','right':'Направо','slight left':'Плавно налево','slight right':'Плавно направо','hard left':'Резко налево','hard right':'Резко направо','uturn':'Разворот','straight':'Прямо','roundabout':'На круговом движении','merge':'Влиться в поток','exit left':'Съезд налево','exit right':'Съезд направо'};
+
+const LS = {get(k,d){try{const v=localStorage.getItem('drv_'+k);return v?JSON.parse(v):d}catch(e){return d}},
+            set(k,v){try{localStorage.setItem('drv_'+k,JSON.stringify(v))}catch(e){}}};
+const $ = id=>document.getElementById(id);
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const shuffle = a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const pick = a=>a[Math.floor(Math.random()*a.length)];
+const km = m=>m<1000?Math.round(m/10)*10+' м':(m/1000).toFixed(m<10000?1:0).replace('.',',')+' км';
+const mins = s=>{const m=Math.round(s/60);return m<60?m+' мин':Math.floor(m/60)+' ч '+(m%60)+' мин'};
+
+let map, ym, homeMark=null, routeView=null, tempObjs=[], clickMode=null, pendingAdd=null;
+let home = LS.get('home', null);
+let mine = LS.get('mine', []);
+let score = LS.get('score', {r:0,t:0});
+const coordCache = new Map();
+const seenStreets = new Set();
+
+function allPlaces(){
+  const out=[];
+  PLACES.forEach(g=>g.items.forEach(([n,q])=>out.push({name:n,q,grp:g.g,cls:g.cls})));
+  mine.forEach(p=>out.push({name:p.name,coords:p.coords,grp:'Мои места',cls:'mine'}));
+  return out;
+}
+
+/* ---------- запуск ---------- */
+function boot(){
+  const key = KEY_IN_FILE || LS.get('key','');
+  if(!key){ $('keyScreen').hidden=false; return; }
+  const s=document.createElement('script');
+  s.src='https://api-maps.yandex.ru/2.1/?apikey='+encodeURIComponent(key)+'&lang=ru_RU';
+  s.onload=()=>window.ymaps.ready(init,()=>{ $('keyScreen').hidden=false; $('keyErr').hidden=false; $('keyErr').textContent='Яндекс не принял ключ. Проверьте его в кабинете разработчика.'; });
+  s.onerror=()=>{ $('keyScreen').hidden=false; $('keyErr').hidden=false; $('keyErr').textContent='Карты не загрузились. Проверьте ключ и интернет.'; };
+  document.head.appendChild(s);
+}
+$('keySave').addEventListener('click',()=>{const v=$('keyInput').value.trim(); if(!v)return; LS.set('key',v); location.reload();});
+$('keyReset').addEventListener('click',()=>{LS.set('key',''); location.reload();});
+
+function init(){
+  ym = window.ymaps;
+  $('app').hidden=false;
+  map = new ym.Map('map',{center: home||GROZNY, zoom: home?13:11, controls:['zoomControl','typeSelector']},{suppressMapOpenBlock:true});
+  map.events.add('click', e=>{
+    const c=e.get('coords');
+    if(clickMode==='home') setHome(c);
+    else if(clickMode==='guess') onGuess(c);
+    else if(clickMode==='add') onAddPoint(c);
+  });
+  drawHome(); renderSigns(); renderMine(); renderScore();
+}
+
+/* ---------- вкладки ---------- */
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.setAttribute('aria-selected',x===b));
+  document.querySelectorAll('[data-p]').forEach(p=>p.hidden=p.dataset.p!==b.dataset.t);
+  if(b.dataset.t!=='geo' && geo) endGeo(true);
+  if(clickMode==='home'||clickMode==='add') clickMode=null;
+}));
+
+/* ---------- дом ---------- */
+function drawHome(){
+  if(homeMark) map.geoObjects.remove(homeMark);
+  $('homeChip').textContent = home ? 'Дом указан' : 'Дом не указан';
+  $('needHome1').hidden = !!home;
+  if(!home) return;
+  homeMark = new ym.Placemark(home,{iconCaption:'Дом'},{preset:'islands#redHomeCircleIcon'});
+  map.geoObjects.add(homeMark);
+}
+function setHome(c){
+  home=c; LS.set('home',c); clickMode=null; drawHome();
+  $('homeMsg').innerHTML='<div class="msg">Дом сохранён. Теперь выбирайте маршрут или проходите тест.</div>';
+}
+$('setHomeTap').addEventListener('click',()=>{clickMode='home'; $('homeMsg').innerHTML='<div class="msg">Нажмите на карте на свой дом. Можно приблизить карту.</div>';});
+$('setHomeGps').addEventListener('click',()=>{
+  if(!navigator.geolocation){ $('homeMsg').innerHTML='<div class="msg err">Телефон не даёт определить место. Укажите дом на карте.</div>'; return; }
+  $('homeMsg').innerHTML='<div class="msg">Определяю место…</div>';
+  navigator.geolocation.getCurrentPosition(p=>{const c=[p.coords.latitude,p.coords.longitude]; setHome(c); map.setCenter(c,16);},
+    ()=>{ $('homeMsg').innerHTML='<div class="msg err">Не получилось определить место. Разрешите доступ к геолокации или укажите дом на карте.</div>'; },{enableHighAccuracy:true,timeout:15000});
+});
+
+/* ---------- мои места ---------- */
+$('addPlace').addEventListener('click',()=>{clickMode='add'; $('addForm').hidden=true; $('homeMsg').innerHTML='<div class="msg">Нажмите на карте на нужное место.</div>';});
+function onAddPoint(c){ pendingAdd=c; clickMode=null; $('addForm').hidden=false; $('addName').focus(); $('homeMsg').innerHTML=''; clearTemp(); addTemp(new ym.Placemark(c,{},{preset:'islands#greenDotIcon'})); }
+$('addSave').addEventListener('click',()=>{const n=$('addName').value.trim(); if(!n||!pendingAdd)return; mine.push({name:n,coords:pendingAdd}); LS.set('mine',mine); pendingAdd=null; $('addName').value=''; $('addForm').hidden=true; clearTemp(); renderMine(); renderSigns();});
+$('addCancel').addEventListener('click',()=>{pendingAdd=null; $('addForm').hidden=true; clearTemp();});
+function renderMine(){
+  $('mineList').innerHTML = mine.length ? mine.map((p,i)=>`<li><span>${esc(p.name)}</span><button class="btn" data-del="${i}">Удалить</button></li>`).join('') : '<li><span class="note">Пока пусто</span></li>';
+  $('mineList').querySelectorAll('[data-del]').forEach(b=>b.addEventListener('click',()=>{mine.splice(+b.dataset.del,1); LS.set('mine',mine); renderMine(); renderSigns();}));
+}
+
+/* ---------- геокодер и маршрутизатор ---------- */
+async function locate(p){
+  if(p.coords) return p.coords;
+  if(coordCache.has(p.q)) return coordCache.get(p.q);
+  const res = await ym.geocode(p.q,{results:1});
+  const o = res.geoObjects.get(0);
+  if(!o) throw new Error('Не нашёл «'+p.name+'» на карте');
+  const c=o.geometry.getCoordinates(); coordCache.set(p.q,c); return c;
+}
+function buildRoute(from,to){
+  return new Promise((resolve,reject)=>{
+    const model = new ym.multiRouter.MultiRouteModel([from,to],{routingMode:'auto',results:1});
+    const timer=setTimeout(()=>reject(new Error('Маршрут долго не строится. Проверьте интернет.')),25000);
+    model.events.once('requestfail',()=>{clearTimeout(timer);reject(new Error('Не удалось построить маршрут'))});
+    model.events.once('requestsuccess',()=>{
+      clearTimeout(timer);
+      const r=model.getRoutes()[0];
+      if(!r) return reject(new Error('Маршрут не найден'));
+      const pr=r.properties;
+      const steps=[];
+      r.getPaths().forEach(path=>path.getSegments().forEach(seg=>{
+        const sp=seg.properties; let c=null;
+        try{ c=seg.geometry.getCoordinates()[0]; }catch(e){}
+        const st=sp.get('street')||'';
+        if(st) seenStreets.add(st);
+        const act=sp.get('action')||'';
+        const txt=sp.get('text')||((ACT[act]||'')+(st?(ACT[act]?', ':'')+st:''));
+        steps.push({text:txt,street:st,action:sp.get('action')||'',dist:(sp.get('distance')||{}).value||0,c});
+      }));
+      resolve({model,from,to,dist:(pr.get('distance')||{}).value||0,dur:(pr.get('duration')||{}).value||0,steps});
+    });
+  });
+}
+function showRoute(R){
+  if(routeView) map.geoObjects.remove(routeView);
+  routeView = new ym.multiRouter.MultiRoute(R.model,{routeActiveStrokeColor:'1f5fbfdd',routeActiveStrokeWidth:6,wayPointStartIconColor:'#c62828',wayPointFinishIconColor:'#1f5fbf'});
+  map.geoObjects.add(routeView);
+  map.setBounds(ym.util.bounds.fromPoints([R.from,R.to]),{checkZoomRange:true,zoomMargin:40});
+}
+function clearTemp(){ tempObjs.forEach(o=>map.geoObjects.remove(o)); tempObjs=[]; }
+function addTemp(o){ map.geoObjects.add(o); tempObjs.push(o); return o; }
+
+function bearingDir(a,b){
+  const r=Math.PI/180, la1=a[0]*r, la2=b[0]*r, dl=(b[1]-a[1])*r;
+  const y=Math.sin(dl)*Math.cos(la2), x=Math.cos(la1)*Math.sin(la2)-Math.sin(la1)*Math.cos(la2)*Math.cos(dl);
+  const br=(Math.atan2(y,x)/r+360)%360;
+  return DIRS[Math.round(br/45)%8];
+}
+function crowKm(a,b){
+  const r=Math.PI/180, dLa=(b[0]-a[0])*r, dLo=(b[1]-a[1])*r;
+  const h=Math.sin(dLa/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(dLo/2)**2;
+  return 12742*Math.asin(Math.sqrt(h));
+}
+
+/* ---------- вкладка «Маршрут» ---------- */
+let curRoute=null, curSign=null;
+function renderSigns(){
+  const groups={};
+  allPlaces().forEach(p=>{(groups[p.grp]=groups[p.grp]||[]).push(p)});
+  $('signList').innerHTML = Object.entries(groups).map(([g,ps])=>`<div class="grp">${esc(g)}</div><div class="signs">${
+    ps.map(p=>`<button class="sign ${p.cls}" data-n="${esc(p.name)}" aria-pressed="${curSign===p.name}">${esc(p.name)}</button>`).join('')}</div>`).join('');
+  $('signList').querySelectorAll('.sign').forEach(b=>b.addEventListener('click',()=>routeTo(b.dataset.n)));
+}
+async function routeTo(name){
+  if(!home){ $('needHome1').hidden=false; return; }
+  const p=allPlaces().find(x=>x.name===name); if(!p) return;
+  curSign=name; renderSigns();
+  $('routeOut').innerHTML='<div class="msg">Строю маршрут до «'+esc(name)+'»…</div>';
+  try{
+    const to=await locate(p); const R=await buildRoute(home,to); curRoute=R; showRoute(R); clearTemp();
+    const st=R.steps.filter(s=>s.text);
+    $('routeOut').innerHTML=`<div class="sum"><b>${km(R.dist)}</b><span>${mins(R.dur)} без пробок · ${bearingDir(home,to)} от дома</span></div>
+      <div class="row"><button class="btn pri" id="rehStart">Репетиция по шагам</button></div>
+      <ol class="steps">${st.map((s,i)=>`<li data-i="${i}"><span>${esc(s.text)}</span><span class="d">${km(s.dist)}</span></li>`).join('')}</ol>
+      <p class="note">Нажмите на шаг — карта покажет это место.</p>`;
+    $('routeOut').querySelectorAll('.steps li').forEach(li=>li.addEventListener('click',()=>focusStep(st,+li.dataset.i)));
+    $('rehStart').addEventListener('click',()=>startReh(st));
+  }catch(e){ $('routeOut').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+let rehMark=null;
+function focusStep(st,i){
+  const s=st[i]; if(!s||!s.c) return;
+  map.setCenter(s.c,16,{duration:300});
+  if(rehMark) map.geoObjects.remove(rehMark);
+  rehMark=new ym.Placemark(s.c,{iconContent:String(i+1)},{preset:'islands#darkBlueCircleIcon'}); map.geoObjects.add(rehMark);
+  document.querySelectorAll('.steps li').forEach(li=>li.classList.toggle('on',+li.dataset.i===i));
+}
+let reh={st:[],i:0};
+function startReh(st){ reh={st,i:0}; $('reh').hidden=false; drawReh(); }
+function drawReh(){ const s=reh.st[reh.i]; $('rehN').textContent='Шаг '+(reh.i+1)+' из '+reh.st.length+' · дальше '+km(s.dist); $('rehT').textContent=s.text; focusStep(reh.st,reh.i);
+  $('rehPrev').disabled=reh.i===0; $('rehNext').textContent=reh.i===reh.st.length-1?'Приехали':'Дальше'; }
+$('rehPrev').addEventListener('click',()=>{if(reh.i>0){reh.i--;drawReh();}});
+$('rehNext').addEventListener('click',()=>{if(reh.i<reh.st.length-1){reh.i++;drawReh();}else closeReh();});
+$('rehClose').addEventListener('click',closeReh);
+function closeReh(){ $('reh').hidden=true; if(rehMark){map.geoObjects.remove(rehMark);rehMark=null;} if(curRoute) map.setBounds(ym.util.bounds.fromPoints([curRoute.from,curRoute.to]),{checkZoomRange:true,zoomMargin:40}); }
+
+/* ---------- вкладка «Как доехать?» ---------- */
+function renderScore(){ $('quizScore').textContent = score.t ? 'Верно: '+score.r+' из '+score.t : ''; }
+function swapLR(t){ return t.replace(/налево|направо|Налево|Направо/g,m=>({'налево':'направо','направо':'налево','Налево':'Направо','Направо':'Налево'}[m])); }
+function makeQuestions(p,to,R){
+  const Q=[];
+  const d=bearingDir(home,to);
+  Q.push({q:`В какой стороне от вашего дома ${p.name}?`,a:d,o:shuffle([d,...shuffle(DIRS.filter(x=>x!==d)).slice(0,3)]),ex:`${p.name} — на ${d}е от дома, по прямой ${km(crowKm(home,to)*1000)}.`});
+  const byStreet={}; R.steps.forEach(s=>{if(s.street) byStreet[s.street]=(byStreet[s.street]||0)+s.dist});
+  const ranked=Object.entries(byStreet).sort((a,b)=>b[1]-a[1]);
+  if(ranked.length){
+    const main=ranked[0][0], onRoute=new Set(Object.keys(byStreet));
+    const pool=shuffle([...new Set([...seenStreets,...STREET_POOL])].filter(s=>!onRoute.has(s)));
+    if(pool.length>=2) Q.push({q:'По какой улице или дороге будет самая длинная часть пути?',a:main,o:shuffle([main,...pool.slice(0,3)]),ex:`Больше всего едем здесь: ${main} — примерно ${km(ranked[0][1])}.`});
+  }
+  const turn=R.steps.find(s=>/left|right|uturn/.test(s.action)&&s.text);
+  if(turn){
+    const alt=swapLR(turn.text); const opts=[turn.text];
+    if(alt!==turn.text) opts.push(alt);
+    opts.push('Ехать прямо, никуда не сворачивая');
+    if(opts.length>=2) Q.push({q:'Какой первый поворот после выезда от дома?',a:turn.text,o:shuffle(opts),ex:'Первый поворот: '+turn.text+'.'});
+  }
+  const order=[]; R.steps.forEach(s=>{if(s.street&&!order.includes(s.street)) order.push(s.street)});
+  if(order.length>=3){
+    const i=Math.floor(Math.random()*(order.length-1)), j=i+1+Math.floor(Math.random()*(order.length-1-i));
+    Q.push({q:'Что будет раньше по пути?',a:order[i],o:shuffle([order[i],order[j]]),ex:`Порядок улиц: ${order.join(' → ')}.`});
+  }
+  const k=R.dist/1000, f=x=>x<10?x.toFixed(1).replace('.',',')+' км':Math.round(x)+' км';
+  const ks=[...new Set([f(k),f(k*0.55),f(k*1.6),f(k*2.4)])];
+  if(ks.length===4) Q.push({q:'Сколько примерно ехать по дорогам?',a:f(k),o:shuffle(ks),ex:`Около ${f(k)}, это ${mins(R.dur)} без пробок.`});
+  return Q;
+}
+let quiz=null;
+$('quizStart').addEventListener('click',async()=>{
+  if(!home){ $('quizOut').innerHTML='<div class="msg">Сначала укажите дом во вкладке «Дом и места».</div>'; return; }
+  if(routeView){map.geoObjects.remove(routeView);routeView=null;} clearTemp();
+  $('quizOut').innerHTML='<div class="msg">Выбираю место и считаю маршрут…</div>';
+  const pl=shuffle(allPlaces());
+  for(let tries=0;tries<4;tries++){
+    const p=pl[tries];
+    try{
+      const to=await locate(p); if(crowKm(home,to)<0.4) continue;
+      const R=await buildRoute(home,to); const Q=makeQuestions(p,to,R);
+      quiz={p,R,Q,i:0,right:0}; drawQ(); return;
+    }catch(e){ if(tries===3) $('quizOut').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+  }
+});
+function drawQ(){
+  const z=quiz, q=z.Q[z.i];
+  $('quizOut').innerHTML=`<div class="qcard"><div class="qn">Едем: <b>${esc(z.p.name)}</b> · вопрос ${z.i+1} из ${z.Q.length}</div>
+   <div class="q">${esc(q.q)}</div>${q.o.map((o,k)=>`<button class="opt" data-k="${k}">${esc(o)}</button>`).join('')}<div id="qEx"></div></div>`;
+  $('quizOut').querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>answer(b)));
+}
+function answer(b){
+  const z=quiz, q=z.Q[z.i]; if(z.done===z.i) return; z.done=z.i;
+  const chosen=q.o[+b.dataset.k], ok=chosen===q.a;
+  if(ok) z.right++; score.t++; if(ok) score.r++; LS.set('score',score); renderScore();
+  $('quizOut').querySelectorAll('.opt').forEach(x=>{const v=q.o[+x.dataset.k]; if(v===q.a) x.classList.add('ok'); else if(x===b) x.classList.add('bad');});
+  const last=z.i===z.Q.length-1;
+  $('qEx').innerHTML=`<p>${ok?'<b>Верно.</b> ':'<b>Не совсем.</b> '}${esc(q.ex)}</p><div class="row"><button class="btn pri" id="qNext">${last?'Показать маршрут':'Следующий вопрос'}</button></div>`;
+  $('qNext').addEventListener('click',()=>{ if(!last){z.i++;drawQ();} else finishQuiz(); });
+}
+function finishQuiz(){
+  const z=quiz; showRoute(z.R);
+  const st=z.R.steps.filter(s=>s.text);
+  $('quizOut').innerHTML=`<div class="qcard"><div class="q">${z.right} из ${z.Q.length} верно</div>
+   <p>Маршрут до «${esc(z.p.name)}»: ${km(z.R.dist)}, ${mins(z.R.dur)}. Пройдите его по шагам, чтобы запомнить.</p>
+   <div class="row"><button class="btn pri" id="qReh">Репетиция по шагам</button><button class="btn" id="qAgain">Ещё маршрут</button></div></div>`;
+  $('qReh').addEventListener('click',()=>startReh(st));
+  $('qAgain').addEventListener('click',()=>$('quizStart').click());
+}
+
+/* ---------- вкладка «Где это?» ---------- */
+let geo=null;
+function startGeo(kind){
+  if(routeView){map.geoObjects.remove(routeView);routeView=null;} clearTemp();
+  const ps=allPlaces().filter(p=>kind==='city'?(p.grp==='Места в Грозном'):(p.grp==='Города'||p.grp==='Сёла и станицы'));
+  geo={kind,list:shuffle(ps).slice(0,5),i:0,pts:0,wait:false};
+  map.setType('yandex#satellite');
+  map.setCenter(kind==='city'?GROZNY:[43.25,45.75],kind==='city'?12:9);
+  geoAsk();
+}
+function geoAsk(){
+  clearTemp(); const p=geo.list[geo.i]; clickMode='guess'; geo.wait=true;
+  $('geoOut').innerHTML=`<div class="qcard"><div class="qn">Вопрос ${geo.i+1} из ${geo.list.length} · очки: ${geo.pts}</div><div class="q">Нажмите на карте: где ${esc(p.name)}?</div></div>`;
+}
+async function onGuess(c){
+  if(!geo||!geo.wait) return; geo.wait=false; clickMode=null;
+  const p=geo.list[geo.i];
+  try{
+    const t=await locate(p), d=crowKm(c,t);
+    const lim=geo.kind==='city'?[0.5,1.5,3]:[3,8,15];
+    const got=d<lim[0]?3:d<lim[1]?2:d<lim[2]?1:0; geo.pts+=got;
+    addTemp(new ym.Placemark(c,{iconCaption:'Ваш ответ'},{preset:'islands#grayDotIcon'}));
+    addTemp(new ym.Placemark(t,{iconCaption:p.name},{preset:'islands#blueDotIcon'}));
+    addTemp(new ym.Polyline([c,t],{},{strokeColor:'#ffb400',strokeWidth:3,strokeStyle:'dash'}));
+    map.setBounds(ym.util.bounds.fromPoints([c,t]),{checkZoomRange:true,zoomMargin:60});
+    const last=geo.i===geo.list.length-1;
+    $('geoOut').innerHTML=`<div class="qcard"><div class="q">Ошибка ${km(d*1000)} · +${got}</div>
+      <p>${esc(p.name)}: ${bearingDir(home||GROZNY,t)} от ${home?'дома':'центра Грозного'}, по прямой ${km(crowKm(home||GROZNY,t)*1000)}.</p>
+      <div class="row"><button class="btn pri" id="gNext">${last?'Итог':'Дальше'}</button></div></div>`;
+    $('gNext').addEventListener('click',()=>{ if(!last){ geo.i++; map.setCenter(geo.kind==='city'?GROZNY:[43.25,45.75],geo.kind==='city'?12:9); geoAsk(); } else endGeo(false); });
+  }catch(e){ $('geoOut').innerHTML='<div class="msg err">'+esc(e.message)+'</div>'; }
+}
+function endGeo(silent){
+  const g=geo; geo=null; clickMode=null; map.setType('yandex#map'); clearTemp();
+  if(!silent) $('geoOut').innerHTML=`<div class="qcard"><div class="q">Итог: ${g.pts} из ${g.list.length*3}</div><p class="note">3 очка — очень точно, 0 — далеко. Повторяйте, пока не будет стабильно больше 10.</p></div>`;
+}
+$('geoTowns').addEventListener('click',()=>startGeo('towns'));
+$('geoCity').addEventListener('click',()=>startGeo('city'));
+
+boot();
+}
+</script>
+</body>
+</html>
